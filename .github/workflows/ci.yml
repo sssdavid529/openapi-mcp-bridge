@@ -19,7 +19,7 @@ jobs:
       - name: Format check
         run: ruff format --check .
       - name: Type check
-        run: mypy .
+        run: mypy src
 
   test:
     runs-on: ubuntu-latest
