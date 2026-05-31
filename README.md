@@ -14,9 +14,12 @@ response to the model.
 - 🔧 **One tool per endpoint** — names from `operationId`, JSON Schema inputs
   built from parameters and request bodies.
 - 📥 **OpenAPI 3.x and Swagger 2.0** — both normalised to the same model.
-- 🔌 **stdio transport** built on the official [`mcp`](https://pypi.org/project/mcp/) SDK.
+- 🔌 **stdio and SSE transports** — local or remote, built on the official
+  [`mcp`](https://pypi.org/project/mcp/) SDK.
+- 🏷️ **Tag filtering** — `--include-tags` / `--exclude-tags` to expose only
+  the endpoints your AI assistant needs.
 - 🔒 **No secrets in code** — every credential comes from an environment variable.
-- ✅ **Typed, tested, and linted.**
+- ✅ **Typed, tested, and linted** — 77 tests, ruff, CI across Python 3.10–3.13.
 
 ## Installation
 
@@ -41,10 +44,24 @@ start a server — handy for inspecting what will be exposed):
 openapi-mcp-bridge --spec https://petstore3.swagger.io/api/v3/openapi.json --list-tools
 ```
 
+Filter by tags to expose only a subset of a large API:
+
+```bash
+openapi-mcp-bridge --spec https://petstore3.swagger.io/api/v3/openapi.json \
+  --list-tools --include-tags pet store
+```
+
 Run it as an MCP server over stdio:
 
 ```bash
 openapi-mcp-bridge --spec https://petstore3.swagger.io/api/v3/openapi.json
+```
+
+Or over SSE (HTTP + Server-Sent Events) for remote MCP clients:
+
+```bash
+openapi-mcp-bridge --spec https://petstore3.swagger.io/api/v3/openapi.json \
+  --transport sse --host 0.0.0.0 --port 8080
 ```
 
 You can also invoke it as a module:
@@ -54,6 +71,8 @@ python -m openapi_mcp_bridge --spec ./openapi.yaml
 ```
 
 ## Use with Claude Desktop
+
+### stdio (local)
 
 Add an entry to your `claude_desktop_config.json`:
 
@@ -69,6 +88,21 @@ Add an entry to your `claude_desktop_config.json`:
       "env": {
         "OPENAPI_MCP_TOKEN": "your-bearer-token-here"
       }
+    }
+  }
+}
+```
+
+### SSE (remote / browser clients)
+
+Start the bridge in SSE mode, then point your MCP client at
+`http://localhost:8000/sse`:
+
+```json
+{
+  "mcpServers": {
+    "petstore": {
+      "url": "http://localhost:8000/sse"
     }
   }
 }
@@ -92,17 +126,19 @@ If you do not have the console script on your `PATH`, you can run it with
 }
 ```
 
-Restart Claude Desktop after editing the config. The same `command`/`args`/`env`
-shape works for any MCP client (e.g. Cursor, Continue, or a custom one).
-
 ## Command-line options
 
 | Option | Description |
 | --- | --- |
 | `--spec` (required) | OpenAPI/Swagger spec to load: an `http(s)` URL or a file path. |
+| `--transport` | MCP transport: `stdio` (default) or `sse`. |
+| `--host` | Host for SSE transport (default `127.0.0.1`). |
+| `--port` | Port for SSE transport (default `8000`). |
 | `--base-url` | Override the API server base URL declared in the spec. |
 | `--name` | MCP server name (defaults to the spec's `info.title`). |
 | `--timeout` | Per-request HTTP timeout in seconds (default `30`). |
+| `--include-tags` | Only expose endpoints matching at least one of these tags. |
+| `--exclude-tags` | Exclude endpoints matching any of these tags. |
 | `--list-tools` | Print the generated tools and exit without starting the server. |
 | `--version` | Print the version and exit. |
 
@@ -131,11 +167,18 @@ the spec doesn't describe? Use `OPENAPI_MCP_EXTRA_HEADERS`, e.g.
    `$ref` pointers, with cycle protection.
 2. **Normalise** OpenAPI 3.x / Swagger 2.0 into a single internal model of
    operations, parameters, request bodies, and security schemes.
-3. **Generate** one MCP tool per operation. Path/query/header parameters become
+3. **Filter** (optional) by tags to expose only the endpoints your AI assistant
+   needs.
+4. **Generate** one MCP tool per operation. Path/query/header parameters become
    top-level JSON Schema properties; the request body becomes a `body` property.
-4. **Proxy** each tool call to a real HTTP request — substituting path
+5. **Proxy** each tool call to a real HTTP request — substituting path
    parameters, attaching the query string, injecting auth, and sending the body —
    then return the status line and response body to the model.
+
+## Security
+
+See [SECURITY.md](SECURITY.md) for details on how credentials are handled and
+how to report vulnerabilities.
 
 ## Development
 
