@@ -11,21 +11,30 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Tag or branch to build (e.g. v0.2.0)"
+        required: true
+        default: "main"
 
 jobs:
   build-and-publish:
     runs-on: ubuntu-latest
     permissions:
-      id-token: write   # PyPI Trusted Publishing (OIDC)
-      contents: write   # upload assets to GitHub Release
+      id-token: write    # PyPI Trusted Publishing (OIDC)
+      contents: write    # upload assets to GitHub Release
+      packages: write    # publish to GitHub Packages
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - name: Build distributions
         run: |
-          python -m pip install --upgrade build
+          python -m pip install --upgrade build twine
           python -m build
       - name: Upload assets to GitHub Release
         uses: softprops/action-gh-release@v2
@@ -33,5 +42,13 @@ jobs:
           files: |
             dist/*.whl
             dist/*.tar.gz
+      - name: Publish to GitHub Packages
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          twine upload --non-interactive \
+            --repository-url "https://upload.pkg.github.com/${{ github.repository_owner }}/" \
+            dist/*.whl dist/*.tar.gz
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
