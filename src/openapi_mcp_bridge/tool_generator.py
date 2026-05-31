@@ -140,7 +140,7 @@ def _parse_v2(
     )
 
 
-def _iter_path_items(document: dict[str, Any]):
+def _iter_path_items(document: dict[str, Any]) -> Any:
     paths = document.get("paths")
     if not isinstance(paths, dict):
         return

@@ -14,6 +14,7 @@ Supports two transports:
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 import jsonschema
 import mcp.types as types
@@ -22,6 +23,7 @@ from mcp.server.lowlevel import Server
 from mcp.server.sse import SseServerTransport
 from mcp.server.stdio import stdio_server
 from starlette.applications import Starlette
+from starlette.requests import Request
 from starlette.responses import Response
 from starlette.routing import Route
 
@@ -50,19 +52,21 @@ class BridgeServer:
     def _register_handlers(self) -> None:
         # Input validation is done in ``call_tool`` (see ``validate_input=False``)
         # so behaviour is identical whether reached via the SDK or called directly.
-        @self.server.list_tools()
+        # mypy: the mcp SDK decorators are untyped; these ignore comments keep
+        # strict mode clean without sacrificing runtime correctness.
+        @self.server.list_tools()  # type: ignore[untyped-decorator]
         async def _list_tools() -> list[types.Tool]:
             return await self.list_tools()
 
-        @self.server.call_tool(validate_input=False)
-        async def _call_tool(name: str, arguments: dict | None) -> types.CallToolResult:
+        @self.server.call_tool(validate_input=False)  # type: ignore[untyped-decorator]
+        async def _call_tool(name: str, arguments: dict[str, Any] | None) -> types.CallToolResult:
             return await self.call_tool(name, arguments or {})
 
     async def list_tools(self) -> list[types.Tool]:
         """Return all tools generated from the specification."""
         return list(self._tools)
 
-    async def call_tool(self, name: str, arguments: dict) -> types.CallToolResult:
+    async def call_tool(self, name: str, arguments: dict[str, Any]) -> types.CallToolResult:
         """Validate arguments and proxy the call, never raising to the transport."""
         tool = self._tools_by_name.get(name)
         if tool is None:
@@ -102,7 +106,7 @@ class BridgeServer:
         """
         sse = SseServerTransport(_SSE_ENDPOINT)
 
-        async def handle_sse(request):
+        async def handle_sse(request: Request) -> Response:
             init_options = self.server.create_initialization_options()
             async with sse.connect_sse(request.scope, request.receive, request._send) as (
                 read_stream,
@@ -111,7 +115,7 @@ class BridgeServer:
                 await self.server.run(read_stream, write_stream, init_options, stateless=True)
             return Response()
 
-        async def handle_messages(request):
+        async def handle_messages(request: Request) -> Response:
             await sse.handle_post_message(request.scope, request.receive, request._send)
             return Response()
 
