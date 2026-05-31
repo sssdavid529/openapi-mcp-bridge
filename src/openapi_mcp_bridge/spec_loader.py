@@ -79,7 +79,8 @@ def resolve_refs(document: dict[str, Any]) -> dict[str, Any]:
             return [_resolve(item, seen) for item in node]
         return node
 
-    return _resolve(root, frozenset())
+    result: Any = _resolve(root, frozenset())
+    return result
 
 
 def _lookup_pointer(root: dict[str, Any], ref: str) -> Any:

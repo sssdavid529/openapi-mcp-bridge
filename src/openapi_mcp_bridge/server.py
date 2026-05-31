@@ -55,11 +55,11 @@ class BridgeServer:
         # mypy: the mcp SDK decorators are untyped; these ignore comments keep
         # strict mode clean without sacrificing runtime correctness.
         @self.server.list_tools()  # type: ignore[untyped-decorator]
-        async def _list_tools() -> list[types.Tool]:
+        async def _list_tools() -> Any:
             return await self.list_tools()
 
         @self.server.call_tool(validate_input=False)  # type: ignore[untyped-decorator]
-        async def _call_tool(name: str, arguments: dict[str, Any] | None) -> types.CallToolResult:
+        async def _call_tool(name: str, arguments: dict[str, Any] | None) -> Any:
             return await self.call_tool(name, arguments or {})
 
     async def list_tools(self) -> list[types.Tool]:
