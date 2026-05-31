@@ -158,12 +158,13 @@ def _params_v3(raw: Any) -> list[Parameter]:
         name = entry.get("name")
         if location not in ("path", "query", "header", "cookie") or not name:
             continue
+        raw_schema = entry.get("schema")
         result.append(
             Parameter(
                 name=name,
                 location=location,
                 required=bool(entry.get("required", location == "path")),
-                schema=entry.get("schema") if isinstance(entry.get("schema"), dict) else {},
+                schema=raw_schema if isinstance(raw_schema, dict) else {},
                 description=entry.get("description"),
             )
         )
@@ -415,7 +416,7 @@ def _build_input_schema(operation: Operation) -> dict[str, Any]:
         if operation.request_body_required:
             required.append("body")
 
-    schema: dict[str, Any] = {"type": "object", "properties": properties}
+    result_schema: dict[str, Any] = {"type": "object", "properties": properties}
     if required:
-        schema["required"] = required
-    return schema
+        result_schema["required"] = required
+    return result_schema
