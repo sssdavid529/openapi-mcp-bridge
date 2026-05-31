@@ -52,9 +52,9 @@ class BridgeServer:
     def _register_handlers(self) -> None:
         # Input validation is done in ``call_tool`` (see ``validate_input=False``)
         # so behaviour is identical whether reached via the SDK or called directly.
-        # mypy: the mcp SDK decorators are untyped; these ignore comments keep
-        # strict mode clean without sacrificing runtime correctness.
-        @self.server.list_tools()  # type: ignore[untyped-decorator]
+        # mypy: the mcp SDK decorators are untyped; ignore decorator-call
+        # and untyped-context diagnostics on these two registration lines.
+        @self.server.list_tools()  # type: ignore[untyped-decorator, no-untyped-call]
         async def _list_tools() -> Any:
             return await self.list_tools()
 

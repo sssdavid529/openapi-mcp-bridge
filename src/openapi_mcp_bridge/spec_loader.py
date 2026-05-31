@@ -80,7 +80,7 @@ def resolve_refs(document: dict[str, Any]) -> dict[str, Any]:
         return node
 
     result: Any = _resolve(root, frozenset())
-    return result
+    return result  # type: ignore[no-any-return]  # recursion depth makes inference impractical
 
 
 def _lookup_pointer(root: dict[str, Any], ref: str) -> Any:
