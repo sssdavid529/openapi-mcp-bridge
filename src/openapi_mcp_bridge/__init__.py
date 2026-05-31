@@ -10,7 +10,7 @@ from .server import BridgeServer, build_server
 from .spec_loader import detect_version, load_spec, resolve_refs
 from .tool_generator import generate_tool_defs, parse_spec
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 __all__ = [
     "__version__",

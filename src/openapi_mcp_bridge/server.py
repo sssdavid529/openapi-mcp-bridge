@@ -3,6 +3,12 @@
 Uses the official MCP SDK's low-level :class:`mcp.server.lowlevel.Server` because
 tools are produced dynamically from a spec at runtime, which does not fit the
 decorator-per-function model of ``FastMCP``.
+
+Supports two transports:
+
+* **stdio** (``serve_stdio``) — the default, for local MCP clients.
+* **SSE** (``serve_sse``) — HTTP + Server-Sent Events via Starlette/uvicorn,
+  for remote MCP clients and browser-based AI tools.
 """
 
 from __future__ import annotations
@@ -11,13 +17,20 @@ import logging
 
 import jsonschema
 import mcp.types as types
+import uvicorn
 from mcp.server.lowlevel import Server
+from mcp.server.sse import SseServerTransport
 from mcp.server.stdio import stdio_server
+from starlette.applications import Starlette
+from starlette.responses import Response
+from starlette.routing import Route
 
 from .http_client import ApiProxy
 from .models import ToolDef
 
 logger = logging.getLogger(__name__)
+
+_SSE_ENDPOINT = "/messages/"
 
 
 class BridgeServer:
@@ -79,6 +92,39 @@ class BridgeServer:
                 write_stream,
                 self.server.create_initialization_options(),
             )
+
+    async def serve_sse(self, *, host: str = "127.0.0.1", port: int = 8000) -> None:
+        """Run the server over SSE (HTTP + Server-Sent Events).
+
+        Starts a Starlette + uvicorn HTTP server. Each GET on ``/sse``
+        establishes an SSE stream for server-to-client messages; the client
+        sends JSON-RPC requests via POST to ``/messages/``.
+        """
+        sse = SseServerTransport(_SSE_ENDPOINT)
+
+        async def handle_sse(request):
+            init_options = self.server.create_initialization_options()
+            async with sse.connect_sse(request.scope, request.receive, request._send) as (
+                read_stream,
+                write_stream,
+            ):
+                await self.server.run(read_stream, write_stream, init_options, stateless=True)
+            return Response()
+
+        async def handle_messages(request):
+            await sse.handle_post_message(request.scope, request.receive, request._send)
+            return Response()
+
+        async with self._proxy:
+            app = Starlette(
+                routes=[
+                    Route("/sse", endpoint=handle_sse),
+                    Route(_SSE_ENDPOINT, endpoint=handle_messages, methods=["POST"]),
+                ],
+            )
+            config = uvicorn.Config(app, host=host, port=port, log_level="warning")
+            server = uvicorn.Server(config)
+            await server.serve()
 
 
 def _error_result(message: str) -> types.CallToolResult:

@@ -90,6 +90,54 @@ def test_long_tool_name_is_truncated() -> None:
     assert len(name) <= 64
 
 
+# ------------------------------------------------------------------ #
+# Tag filtering
+# ------------------------------------------------------------------ #
+_TAGGED_DOC: dict = {
+    "openapi": "3.0.0",
+    "info": {"title": "Tagged", "version": "1"},
+    "servers": [{"url": "https://x.example"}],
+    "paths": {
+        "/a": {"get": {"operationId": "op_a", "tags": ["public"]}},
+        "/b": {"get": {"operationId": "op_b", "tags": ["admin"]}},
+        "/c": {"get": {"operationId": "op_c", "tags": ["public", "beta"]}},
+        "/d": {"get": {"operationId": "op_d"}},
+    },
+}
+
+
+def _tagged_tool_names(**kwargs):
+    spec = parse_spec(resolve_refs(_TAGGED_DOC))
+    return {td.name for td in generate_tool_defs(spec, **kwargs)}
+
+
+def test_include_tags_keeps_only_matching() -> None:
+    names = _tagged_tool_names(include_tags=["public"])
+    assert names == {"op_a", "op_c"}  # op_d has no tags → excluded
+
+
+def test_include_tags_multiple_acts_as_or() -> None:
+    names = _tagged_tool_names(include_tags=["public", "admin"])
+    assert names == {"op_a", "op_b", "op_c"}
+
+
+def test_exclude_tags_removes_matching() -> None:
+    names = _tagged_tool_names(exclude_tags=["admin"])
+    assert names == {"op_a", "op_c", "op_d"}
+
+
+def test_include_and_exclude_compose() -> None:
+    # include public → {op_a, op_c}; exclude beta → remove op_c
+    names = _tagged_tool_names(include_tags=["public"], exclude_tags=["beta"])
+    assert names == {"op_a"}
+
+
+def test_empty_include_behaves_like_none() -> None:
+    names1 = _tagged_tool_names(include_tags=[])
+    names2 = _tagged_tool_names(include_tags=None)
+    assert names1 == names2 == {"op_a", "op_b", "op_c", "op_d"}
+
+
 def test_openapi3_and_swagger2_normalise_identically(
     petstore_doc: dict, swagger2_doc: dict
 ) -> None:

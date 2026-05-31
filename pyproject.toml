@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "openapi-mcp-bridge"
-version = "0.1.0"
+version = "0.2.0"
 description = "Expose any OpenAPI/Swagger API as Model Context Protocol (MCP) tools over stdio."
 readme = "README.md"
 requires-python = ">=3.10"

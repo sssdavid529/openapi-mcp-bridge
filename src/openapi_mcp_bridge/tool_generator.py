@@ -329,11 +329,33 @@ def _security_v2(document: dict[str, Any]) -> dict[str, SecurityScheme]:
 # --------------------------------------------------------------------------- #
 # Tool generation
 # --------------------------------------------------------------------------- #
-def generate_tool_defs(spec: ParsedSpec) -> list[ToolDef]:
-    """Build one :class:`ToolDef` per operation, with unique MCP-safe names."""
+def generate_tool_defs(
+    spec: ParsedSpec,
+    *,
+    include_tags: list[str] | None = None,
+    exclude_tags: list[str] | None = None,
+) -> list[ToolDef]:
+    """Build one :class:`ToolDef` per operation, with unique MCP-safe names.
+
+    Args:
+        spec: Normalised specification.
+        include_tags: When non-empty, only operations that have at least one of
+            these tags are included. Operations with no tags are excluded.
+        exclude_tags: When non-empty, operations that have any of these tags are
+            removed. Applied after ``include_tags``.
+    """
     used: set[str] = set()
     defs: list[ToolDef] = []
-    for operation in spec.operations:
+
+    operations = spec.operations
+    if include_tags:
+        tag_set = frozenset(include_tags)
+        operations = [op for op in operations if tag_set.intersection(op.tags)]
+    if exclude_tags:
+        skip_set = frozenset(exclude_tags)
+        operations = [op for op in operations if not skip_set.intersection(op.tags)]
+
+    for operation in operations:
         name = _tool_name(operation, used)
         defs.append(
             ToolDef(
