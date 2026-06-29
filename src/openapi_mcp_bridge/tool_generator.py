@@ -99,7 +99,13 @@ def _parse_v2(
     operations: list[Operation] = []
 
     for path, item in _iter_path_items(document):
-        shared_params, _, _, shared_form, _ = _params_v2(item.get("parameters"))
+        (
+            shared_params,
+            shared_body_schema,
+            shared_body_required,
+            shared_form,
+            shared_form_required,
+        ) = _params_v2(item.get("parameters"))
         for method in _HTTP_METHODS:
             op_obj = item.get(method)
             if not isinstance(op_obj, dict):
@@ -109,12 +115,18 @@ def _parse_v2(
             )
             merged = _merge_params(shared_params, params)
             content_type = "application/json"
+            if body_schema is None:
+                body_schema = shared_body_schema
+                body_required = shared_body_required
             combined_form = {**shared_form, **form_props}
+            combined_form_required = [
+                name for name in shared_form_required if name not in form_props
+            ] + form_required
             if body_schema is None and combined_form:
                 body_schema = {"type": "object", "properties": combined_form}
-                if form_required:
-                    body_schema["required"] = form_required
-                body_required = bool(form_required)
+                if combined_form_required:
+                    body_schema["required"] = combined_form_required
+                body_required = bool(combined_form_required)
                 content_type = "application/x-www-form-urlencoded"
             operations.append(
                 Operation(

@@ -154,3 +154,59 @@ def test_openapi3_and_swagger2_normalise_identically(
         assert v3_tools[name].input_schema == v2_tools[name].input_schema, name
         assert v3_tools[name].operation.method == v2_tools[name].operation.method
         assert v3_tools[name].operation.path == v2_tools[name].operation.path
+
+
+def test_swagger2_path_level_body_parameter_applies_to_operations() -> None:
+    document = {
+        "swagger": "2.0",
+        "info": {"title": "SharedBody", "version": "1"},
+        "host": "api.example.com",
+        "schemes": ["https"],
+        "paths": {
+            "/pets": {
+                "parameters": [
+                    {
+                        "name": "payload",
+                        "in": "body",
+                        "required": True,
+                        "schema": {"type": "object", "properties": {"name": {"type": "string"}}},
+                    }
+                ],
+                "post": {"operationId": "createPet"},
+            }
+        },
+    }
+
+    tool = _tools_by_name(document)["createPet"]
+
+    assert tool.input_schema["properties"]["body"]["properties"]["name"]["type"] == "string"
+    assert tool.input_schema["required"] == ["body"]
+
+
+def test_swagger2_operation_form_data_overrides_path_level_required() -> None:
+    document = {
+        "swagger": "2.0",
+        "info": {"title": "SharedForm", "version": "1"},
+        "host": "api.example.com",
+        "schemes": ["https"],
+        "paths": {
+            "/upload": {
+                "parameters": [
+                    {"name": "file", "in": "formData", "required": True, "type": "string"}
+                ],
+                "post": {
+                    "operationId": "upload",
+                    "parameters": [
+                        {"name": "file", "in": "formData", "required": False, "type": "string"},
+                        {"name": "caption", "in": "formData", "required": True, "type": "string"},
+                    ],
+                },
+            }
+        },
+    }
+
+    tool = _tools_by_name(document)["upload"]
+
+    assert set(tool.input_schema["properties"]["body"]["properties"]) == {"file", "caption"}
+    assert tool.input_schema["properties"]["body"]["required"] == ["caption"]
+    assert tool.input_schema["required"] == ["body"]
