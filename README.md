@@ -57,6 +57,19 @@ Run it as an MCP server over stdio:
 openapi-mcp-bridge --spec https://petstore3.swagger.io/api/v3/openapi.json
 ```
 
+Try a larger hosted OpenAPI spec with API-key auth:
+
+```bash
+OPENAPI_MCP_API_KEY="$XQUIK_API_KEY" \
+  openapi-mcp-bridge --spec https://xquik.com/openapi.json \
+  --list-tools --include-tags Trends Tweets
+```
+
+Xquik's public REST spec includes social search, trends, and X/Twitter workflow
+endpoints. The bridge reads the `x-api-key` header name from the spec's
+`apiKey` security scheme, so the API key stays in the environment instead of the
+config or command history.
+
 Or over SSE (HTTP + Server-Sent Events) for remote MCP clients:
 
 ```bash
